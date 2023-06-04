@@ -6,6 +6,7 @@ from torch.utils.data import TensorDataset, DataLoader
 import os
 import numpy as np
 from module.multimodal import *
+import time
 
 os.environ[
     "KMP_DUPLICATE_LIB_OK"
@@ -120,11 +121,26 @@ def DataStacking():
     The function returns the training and validation sets."""
 
     rawArray = []
+    partialData = True  # loads only 1500 samples from the training set
 
+    print("Loading data...")
+    start = time.time()
+
+    i = 0
     for files in os.listdir(trainingPath):
         data = np.loadtxt(os.path.join(trainingPath, files))
         rawArray.append(data)
-    print(rawArray[0])
+        i += 1
+
+        if partialData:
+            if i == 1500:
+                break
+            else:
+                continue
+
+    print("Data loaded in {:.2f} seconds".format(round(time.time() - start, 3)))
+
+    start = time.time()
     rawArray = torch.stack([torch.from_numpy(a) for a in rawArray])
     mean = rawArray.mean(dim=0)
     std = rawArray.std(dim=0)
@@ -133,6 +149,7 @@ def DataStacking():
     # Adjust the shape of the arrays
     rawArray = rawArray.view(rawArray.shape[0], -1)
 
+    # Split the dataset into training and validation sets
     dataset = TensorDataset(rawArray)
     train_size = int(trainPercentage * len(dataset))
     val_size = len(dataset) - train_size
@@ -142,6 +159,11 @@ def DataStacking():
     dataloader = DataLoader(train_dataset, batch_size=100, shuffle=True)
     val_dataloader = DataLoader(val_dataset, batch_size=100, shuffle=False)
 
+    print(
+        "Data processed and stacked in {:.2f} seconds".format(
+            round(time.time() - start, 3)
+        )
+    )
     return dataloader, val_dataloader
 
 
@@ -192,16 +214,24 @@ def main(generate=True):
 
     epochs = 1000
     batch_size = 100
+    start = time.time()
+
     Training(
         model, base_dist, optimizer, dataloader, val_dataloader, epochs, batch_size
     )
 
     s = loadingAndGenerating(model, base_dist)
+
+    print(
+        "Time elapsed to train and validate the model: {:.2f} seconds".format(
+            round(time.time() - start, 3)
+        )
+    )
     plotConfiguration(s)
 
 
 if __name__ == "__main__":
-    generate = 1
+    generate = 0
 
     if generate == 0:
         generate = False
@@ -209,8 +239,3 @@ if __name__ == "__main__":
         generate = True
 
     main(generate)
-    # if os.path.exists("module/trainingSet/multimodal_0.txt"):
-    #     print("Mannaggia cristo idrocarburo in una valle di solventi apolari")
-    # else:
-    #     print("Cristo frutto della vergogna e del degrado")
-    # # print(np.loadtxt("module/trainingSet/multimodal_0.txt"))
