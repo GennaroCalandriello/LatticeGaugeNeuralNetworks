@@ -9,7 +9,7 @@ In the multimodal.py there are 2 kind of distributions: GMM and a $\cos(x+y)+\si
 -Sample from training set:  
 ![My Image](normflow/img/sincostrainingdata.png)  
 -PDF generated from trained model (trained from 200 epochs, using a small sample of 500 initial distributions):  
-![My Image](normflow/img/sincosfirsttry.png)  
+![My Image](normflow/img/sincos.png)  
 -Loss function of validation set:  
 ![My_Image](normflow/img/lossfunction.png)  
 
