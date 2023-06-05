@@ -12,16 +12,6 @@ os.environ[
     "KMP_DUPLICATE_LIB_OK"
 ] = "True"  # non so cos'è, ma se non lo metto mi caccia cutrecchie
 
-trainPercentage = 0.8  # percentage of the data used for training
-validationPercentage = (
-    1.0 - trainPercentage
-)  # percentage of the data used for validation
-
-trainingPath = r"trainingSet/"
-
-dim = int(N**2)  # dimension of the data, N is in the multimodal.py file
-flow_length = 16  # !!!!!number of transformations in the flow!!!!! IMPORTANT
-
 
 class PlanarFlow(nn.Module):
 
@@ -85,11 +75,18 @@ class PlanarFlowLogDetJacobian(nn.Module):
 
 
 def Training(
-    model, base_dist, optimizer, dataloader, val_dataloader, epochs, batch_size
+    model,
+    base_dist,
+    optimizer,
+    dataloader,
+    val_dataloader,
+    epochs,
+    batch_size,
+    modelName,
 ):
     """Training and validating the model. The function splits the dataset into training (80%) and validation (20%) sets
     trains the model. Every 10 epochs, the model is validated on the validation set."""
-
+    validationList = []
     for epoch in range(epochs):
         for batch in dataloader:
             z0 = batch[0]
@@ -113,7 +110,10 @@ def Training(
                 print(
                     f"Epoch {epoch}, Validation Loss: {val_loss / len(val_dataloader)}"
                 )
-    savingModel(model)
+                validationList.append(val_loss / len(val_dataloader))
+
+    np.savetxt("validationLoss.txt", validationList)
+    savingModel(model, modelName)
 
 
 def DataStacking():
@@ -144,7 +144,8 @@ def DataStacking():
     rawArray = torch.stack([torch.from_numpy(a) for a in rawArray])
     mean = rawArray.mean(dim=0)
     std = rawArray.std(dim=0)
-    rawArray = ((rawArray - mean) / std).float()
+    rawArray = (rawArray - mean) / std
+    rawArray = rawArray.float()
 
     # Adjust the shape of the arrays
     rawArray = rawArray.view(rawArray.shape[0], -1)
@@ -167,7 +168,7 @@ def DataStacking():
     return dataloader, val_dataloader
 
 
-def savingModel(model, name="multivariateNormal"):
+def savingModel(model, name):
     """Save the model in a .pth file."""
     torch.save(model.state_dict(), name + ".pth")
     print("Model saved")
@@ -199,11 +200,18 @@ def plotConfiguration(data):
     static_plot(x, y, data)
 
 
-def main(generate=True):
+def main(generate=True, kind=1):
+    """If kind = 1 generates sumerpositions of sin anc cosin functions,
+    if kind =0 generates GMM"""
     # Generating the initial training configurations set
 
     if generate:
-        _, _ = generateTrainingSet(numTrainingSamples)
+        if kind == 0:
+            modelName = "GMM"
+            _, _ = generateTrainingSet(numTrainingSamples)
+        if kind == 1:
+            _, _ = generateTrainingSet2(numTrainingSamples)
+            modelName = "sinCos"
 
     # Generate the initial distribution to which appy the transformations of the flow
     base_dist = MultivariateNormal(torch.zeros(dim), torch.eye(dim))
@@ -212,12 +220,17 @@ def main(generate=True):
 
     dataloader, val_dataloader = DataStacking()
 
-    epochs = 1000
-    batch_size = 100
     start = time.time()
 
     Training(
-        model, base_dist, optimizer, dataloader, val_dataloader, epochs, batch_size
+        model,
+        base_dist,
+        optimizer,
+        dataloader,
+        val_dataloader,
+        epochs,
+        batch_size,
+        modelName,
     )
 
     s = loadingAndGenerating(model, base_dist)
@@ -230,12 +243,48 @@ def main(generate=True):
     plotConfiguration(s)
 
 
+def plotLoss():
+    loss = np.loadtxt("validationLoss.txt")
+    import matplotlib.pyplot as plt
+
+    plt.plot(loss)
+    plt.show()
+
+
 if __name__ == "__main__":
-    generate = 0
+    generate = 1
+    train = 1
+    trainPercentage = 0.7  # percentage of the data used for training
+
+    validationPercentage = (
+        1.0 - trainPercentage
+    )  # percentage of the data used for validation
+
+    trainingPath = r"trainingSet/"
+
+    dim = int(N**2)  # dimension of the data, N is in the multimodal.py file
+    flow_length = 26  # !!!!!number of transformations in the flow!!!!! IMPORTANT
+    epochs = 400  # number of epochs
+    batch_size = 100
+
+    if train == 0:
+        train = False
+    else:
+        train = True
 
     if generate == 0:
         generate = False
     else:
         generate = True
 
-    main(generate)
+    if train == 1:
+        main(generate, kind=1)
+
+    # loadingAndGenerating()
+    # generateTrainingSet2(8)
+    random_file = np.random.choice(os.listdir(trainingPath))
+    random_path = os.path.join(trainingPath, random_file)
+    pdf = np.loadtxt(random_path)
+    _, x, y = gaussian()
+    static_plot(x, y, pdf)
+    plotLoss()

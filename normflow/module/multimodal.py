@@ -6,9 +6,13 @@ import os
 import shutil
 
 savePath = "trainingSet"
-N = 200  # number of points in the grid
-noise = True  # introduce noise in the data
-numTrainingSamples = 5000
+N = 130  # number of points in the grid
+noise = False  # introduce noise in the data
+numTrainingSamples = 1000
+num_of_Gaussians = 100  # how much Gaussians do you want to sum to obtain multimodality
+eps = 0.02  # noise parameter
+domain = [100, 100]  # maximum extension for x and y
+num_of_sinusoide = 4  # number of sinusoide to add to the data
 
 """This file contains all the functions for generating the initial set of data
 (configuration) as a multimodal distribution constructed from a Gaussian mixture
@@ -87,7 +91,6 @@ def uniformNoise(p):
     This is done to produce samples to better train and validate the model"""
 
     l = int(len(p[0]) / 3)
-    eps = 0.1
 
     for i in range(l):
         for j in range(l):
@@ -116,9 +119,6 @@ def MultimodalGaussian(N, potential, x, y):
     max_x = max(x)
     max_y = max(y)
     Ltilde = 1
-    num_of_Gaussians = (
-        100  # how much Gaussians do you want to sum to obtain multimodality
-    )
 
     for _ in range(num_of_Gaussians):
         # Define the centers of the Gaussians
@@ -142,7 +142,6 @@ def MultimodalGaussian(N, potential, x, y):
 
 def gaussian(noise=True, plot=False):
     """Produce the data, insert the noise and eventually plot it"""
-    domain = [20, 20]  # maximum extension for x and y
 
     x = np.linspace(0, domain[0], N)
     y = np.linspace(0, domain[1], N)
@@ -156,6 +155,45 @@ def gaussian(noise=True, plot=False):
     if plot:
         static_plot(x, y, p)
     return p, x, y
+
+
+def otherDistributions(noise=False):
+    x = np.linspace(0, domain[0], N)
+    y = np.linspace(0, domain[1], N)
+    p = np.zeros((N, N))
+
+    for sin in range(num_of_sinusoide):
+        pnew = np.zeros((N, N))
+        a = np.random.uniform(0, 0.3, 2)
+        b = np.random.uniform(0.01, 0.04, 2)
+
+        for i in range(N):
+            for j in range(N):
+                pnew[i, j] = b[0] * np.cos(a[0] * x[i] + a[1] * y[j]) + b[1] * np.sin(
+                    a[0] * x[i] + a[1] * y[j]
+                )
+        p += pnew
+
+    return p, x, y
+
+    pass
+
+
+def generateTrainingSet2(numData=1):
+    if os.path.exists(savePath):
+        shutil.rmtree(savePath)
+    os.makedirs(savePath)
+
+    for num in range(numData):
+        print("Generating sinusoidal number: {}".format(num))
+        (
+            p,
+            x,
+            y,
+        ) = otherDistributions(noise=noise)
+        np.savetxt(f"{savePath}/sinusoidal_{num}.txt", p)
+
+    return x, y
 
 
 def generateTrainingSet(numData=1):
