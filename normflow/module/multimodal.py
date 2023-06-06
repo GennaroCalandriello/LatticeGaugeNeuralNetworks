@@ -6,13 +6,13 @@ import os
 import shutil
 
 savePath = "trainingSet"
-N = 130  # number of points in the grid
+N = 180  # number of points in the grid
 noise = False  # introduce noise in the data
-numTrainingSamples = 1000
+numTrainingSamples = 2000
 num_of_Gaussians = 100  # how much Gaussians do you want to sum to obtain multimodality
 eps = 0.02  # noise parameter
 domain = [100, 100]  # maximum extension for x and y
-num_of_sinusoide = 4  # number of sinusoide to add to the data
+num_of_sinusoide = 6  # number of sinusoide to add to the data
 
 """This file contains all the functions for generating the initial set of data
 (configuration) as a multimodal distribution constructed from a Gaussian mixture
@@ -81,7 +81,8 @@ def static_plot(x, y, u):
     ax.set_xlabel("x", fontsize=12)
     ax.set_ylabel("y", fontsize=12)
     ax.set_zlabel("P(x, y)", fontsize=12)
-    # fig.savefig(f'OneDrive/Desktop/Github_projects/Van_der_Pol_Fokker_Planck/VdP_ADI/plots/random/random_IC_{t}') #change the path
+    # saving figure
+    fig.savefig(f"plot_{np.random.randint(0, 23344)}.png")  # change the path
     plt.show()
 
 

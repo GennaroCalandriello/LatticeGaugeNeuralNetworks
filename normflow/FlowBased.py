@@ -157,8 +157,8 @@ def DataStacking():
     train_dataset, val_dataset = torch.utils.data.random_split(
         dataset, [train_size, val_size]
     )
-    dataloader = DataLoader(train_dataset, batch_size=100, shuffle=True)
-    val_dataloader = DataLoader(val_dataset, batch_size=100, shuffle=False)
+    dataloader = DataLoader(train_dataset, batch_size, shuffle=True)
+    val_dataloader = DataLoader(val_dataset, batch_size, shuffle=False)
 
     print(
         "Data processed and stacked in {:.2f} seconds".format(
@@ -177,7 +177,7 @@ def savingModel(model, name):
 def loadingAndGenerating(
     model,
     base_dist,
-    name="multivariateNormal",
+    name="sinCos",
 ):
     """Load the model and generate a sample from the target distribution."""
     model.load_state_dict(torch.load(name + ".pth"))
@@ -204,17 +204,20 @@ def main(generate=True, kind=1):
     """If kind = 1 generates sumerpositions of sin anc cosin functions,
     if kind =0 generates GMM"""
     # Generating the initial training configurations set
+    if kind == 0:
+        modelName = "GMM"
+    if kind == 1:
+        modelName = "sinCos"
 
     if generate:
         if kind == 0:
-            modelName = "GMM"
             _, _ = generateTrainingSet(numTrainingSamples)
         if kind == 1:
             _, _ = generateTrainingSet2(numTrainingSamples)
-            modelName = "sinCos"
 
     # Generate the initial distribution to which appy the transformations of the flow
     base_dist = MultivariateNormal(torch.zeros(dim), torch.eye(dim))
+    # base_dist = torch.distributions.Uniform(low=torch.zeros(dim), high=torch.ones(dim))
     model = NormalizingFlow(dim, flow_length)
     optimizer = optim.Adam(model.parameters())
 
@@ -248,12 +251,31 @@ def plotLoss():
     import matplotlib.pyplot as plt
 
     plt.plot(loss)
+    # title of plot
+    plt.title("Validation negative log-likelyhood Loss")
+    plt.xlabel("Epochs")
+    plt.ylabel("Validation Loss")
     plt.show()
 
 
+def generateConfigurationFromModel(name):
+    # Create base distributions
+    base_dist = MultivariateNormal(torch.zeros(dim), torch.eye(dim))
+    # base_dist = torch.distributions.Uniform(low=torch.zeros(dim), high=torch.ones(dim))
+    # base_dist = torch.distributions.Laplace(loc=torch.zeros(dim), scale=torch.ones(dim))
+
+    model = NormalizingFlow(dim, flow_length)
+    model.load_state_dict(torch.load(name + ".pth"))
+
+    s = loadingAndGenerating(model, base_dist)
+    _, x, y = gaussian()
+
+    static_plot(x, y, s.detach().numpy().reshape(N, N))
+
+
 if __name__ == "__main__":
-    generate = 1
-    train = 1
+    generate = 0
+    train = 0
     trainPercentage = 0.7  # percentage of the data used for training
 
     validationPercentage = (
@@ -263,9 +285,9 @@ if __name__ == "__main__":
     trainingPath = r"trainingSet/"
 
     dim = int(N**2)  # dimension of the data, N is in the multimodal.py file
-    flow_length = 26  # !!!!!number of transformations in the flow!!!!! IMPORTANT
-    epochs = 400  # number of epochs
-    batch_size = 100
+    flow_length = 30  # !!!!!number of transformations in the flow!!!!! IMPORTANT
+    epochs = 500  # number of epochs
+    batch_size = 300  # batch size
 
     if train == 0:
         train = False
@@ -278,13 +300,7 @@ if __name__ == "__main__":
         generate = True
 
     if train == 1:
-        main(generate, kind=1)
+        main(generate, kind=1)  # kind = 1 for sinCos, kind = 0 for GMM
 
-    # loadingAndGenerating()
-    # generateTrainingSet2(8)
-    random_file = np.random.choice(os.listdir(trainingPath))
-    random_path = os.path.join(trainingPath, random_file)
-    pdf = np.loadtxt(random_path)
-    _, x, y = gaussian()
-    static_plot(x, y, pdf)
-    plotLoss()
+    for _ in range(10):
+        generateConfigurationFromModel("sinCos")
